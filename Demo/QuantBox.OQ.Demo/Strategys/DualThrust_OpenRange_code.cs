@@ -6,6 +6,8 @@ using OpenQuant.API.Indicators;
 using OpenQuant.API.Plugins;
 
 using QuantBox.OQ.Demo.Indicator;
+using QuantBox.OQ.Demo.Module;
+using QuantBox.OQ.Demo.Helper;
 
 namespace QuantBox.OQ.Demo.Strategys
 {
@@ -25,7 +27,7 @@ namespace QuantBox.OQ.Demo.Strategys
     /// 论坛上OpenRangeBreak中文描述
     /// http://www.smartquant.cn/forum/forum.php?mod=viewthread&tid=398
     /// </summary>
-    public class DualThrust_OpenRange_code : Strategy
+    public class DualThrust_OpenRange_code : TargetPositionModule
     {
         public enum StrategyType
         {
@@ -48,12 +50,6 @@ namespace QuantBox.OQ.Demo.Strategys
         [Parameter]
         double Qty = 1;
 
-        [Parameter("开盘时间，格式：hhmmss")]
-        int openTime = 90000;
-        [Parameter("尾盘开始清仓的时间，格式：hhmmss")]
-        int closeTime = 145900;
-
-
         TimeSeries UpSeries;
         TimeSeries DownSeries;
         TimeSeries RangeSeries;
@@ -70,6 +66,15 @@ namespace QuantBox.OQ.Demo.Strategys
 
         public override void OnStrategyStart()
         {
+            base.OnStrategyStart();
+
+            // 测试用，自定义交易时间，仿真或实盘时可删除
+            base.TimeHelper = new TimeHelper(new int[] { 0, 2400 },2100, 1458);
+
+            base.TargetPosition = 0;
+            base.DualPosition.Long.Qty = 0;
+            base.DualPosition.Short.Qty = 0;
+
             UpSeries = new TimeSeries("Up");
             DownSeries = new TimeSeries("Down");
             RangeSeries = new TimeSeries("Range");
@@ -94,48 +99,72 @@ namespace QuantBox.OQ.Demo.Strategys
 
         public override void OnBarOpen(Bar bar)
         {
-            if (86400 == bar.Size)
+            do
             {
-                if (HH.Count < 1)
-                    return;
-
-                if (StrategyType.OpenRangeBreak == strategyType)
+                if (86400 == bar.Size)
                 {
-                    Range = HH.Last - LL.Last;
-                }
-                else
-                {
-                    Range = Math.Max(HH.Last - LC.Last, HC.Last - LL.Last);
-                }
+                    if (HH.Count < 1)
+                        break;
 
-                double dbOpen = bar.Open;
-                UpLine = dbOpen + K1 * Range;
-                DownLine = dbOpen - K2 * Range;
-            }
+                    if (StrategyType.OpenRangeBreak == strategyType)
+                    {
+                        Range = HH.Last - LL.Last;
+                    }
+                    else
+                    {
+                        Range = Math.Max(HH.Last - LC.Last, HC.Last - LL.Last);
+                    }
+
+                    double dbOpen = bar.Open;
+                    // 如果昨天波动过小，调整一下最小range
+                    Range = Math.Max(Range, dbOpen * 0.01 * 0.2);
+
+                    UpLine = dbOpen + K1 * Range;
+                    DownLine = dbOpen - K2 * Range;
+
+                    base.ChangeTradingDay();
+                }
+            } while (false);
+
+            base.OnBarOpen(bar);
         }
 
         public override void OnBar(Bar bar)
         {
-            DateTime time = Clock.Now;
-            int dateTime = time.Hour * 10000 + time.Minute * 100 + time.Second;
-
-            if (dateTime > closeTime)
+            do
             {
-                ClosePosition("T|尾盘平仓");
-                return;
+                // 尾盘平仓
+                if (0 != ExitOnClose(3,""))
+                    break;
+
+                // 日线数据上不处理
+                if (86400 == bar.Size)
+                    break;
+
+                // 数据
+                if (double.IsNaN(UpLine))
+                    break;
+
+                UpSeries.Add(bar.DateTime, UpLine);
+                DownSeries.Add(bar.DateTime, DownLine);
+                RangeSeries.Add(bar.DateTime, Range);
+
+                if (bar.Close > UpLine)
+                {
+                    TargetPosition = 1;
+                    TextParameter.Text = "突破上轨，多头";
+                }
+                else if (bar.Close < DownLine)
+                {
+                    TargetPosition = -1;
+                    TextParameter.Text = "突破下轨，空头";
+                }
+                else
+                {
+                    // 处于中间状态的怎么处理？
+                }
             }
-
-            if (86400 == bar.Size)
-            {
-                return;
-            }
-
-            if (double.IsNaN(UpLine))
-                return;
-
-            UpSeries.Add(bar.DateTime, UpLine);
-            DownSeries.Add(bar.DateTime, DownLine);
-            RangeSeries.Add(bar.DateTime, Range);
+            while (false);
 
             if (Mode == StrategyMode.Simulation)
             {
@@ -143,32 +172,25 @@ namespace QuantBox.OQ.Demo.Strategys
                 //return;
             }
 
-            if (HasPosition)
+            base.OnBar(bar);
+        }
+
+
+        public override void OnTrade(Trade trade)
+        {
+            do
             {
-                if (Position.Amount < 0
-                  && bar.Close > UpLine)
-                {
-                    ClosePosition("T|反手");
-                    Buy(Qty, "O|");
-                }
-                if (Position.Amount > 0
-                  && bar.Close < DownLine)
-                {
-                    ClosePosition("T|反手");
-                    Sell(Qty, "O|");
-                }
-            }
-            else
-            {
-                if (bar.Close > UpLine)
-                {
-                    Buy(Qty, "O|");
-                }
-                else if (bar.Close < DownLine)
-                {
-                    Sell(Qty, "O|");
-                }
-            }
+                // 尾盘平仓
+                if (0 != ExitOnClose(3,""))
+                    break;
+
+                // 跟踪止损
+                TrailingStop(trade.Price, 5, StopMode.Absolute, "");
+
+            } while (false);
+            
+
+            base.OnTrade(trade);
         }
     }
 }

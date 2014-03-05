@@ -15,6 +15,7 @@ namespace QuantBox.OQ.Demo.Indicator
     public class KaufmanAMA : UserIndicator
     {
         int n, p, q;
+        // 效率系数
         public TimeSeries ER = new TimeSeries("ER");
 
         public KaufmanAMA(ISeries series, int n, int p, int q)
@@ -28,15 +29,16 @@ namespace QuantBox.OQ.Demo.Indicator
 
         public override double Calculate(int index)
         {
-            if (index - n < 0)
+            int j = index - n;
+            if (j < 0)
                 return double.NaN;
 
             DateTime dt = Input.GetDateTime(index);
 
-            double DIRECTION = Math.Abs(Input[index, BarData.Close] - Input[index - n, BarData.Close]);
+            double DIRECTION = Math.Abs(Input[index, BarData.Close] - Input[j, BarData.Close]);
 
             double VOLATILITY = 0;
-            for (int i = index - n; i < index; ++i)
+            for (int i = j; i < index; ++i)
             {
                 VOLATILITY += Math.Abs(Input[i + 1, BarData.Close] - Input[i, BarData.Close]);
             }
@@ -56,12 +58,13 @@ namespace QuantBox.OQ.Demo.Indicator
             double SCSQ = SC * SC;
 
             double db = Input[index, BarData.Close];
-            if (this.Count < 1)
+
+            if (j == 0)
             {
             }
             else
             {
-                db = SCSQ * db + (1 - SCSQ) * this.Last; //{DMA指标，AMAt=SCSQt-1*CLOSEt-1+(1-SCSQt-1)*AMAt-1}
+                db = SCSQ * db + (1 - SCSQ) * this[j - 1];
             }
 
             return db;

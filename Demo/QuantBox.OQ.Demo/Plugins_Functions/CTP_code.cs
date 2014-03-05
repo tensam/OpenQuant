@@ -29,9 +29,26 @@ namespace QuantBox.OQ.Demo.Plugins_Functions
             CTPAPI.GetInstance().OnRspQryInstrumentCommissionRate += new CTPAPI.RspQryInstrumentCommissionRate(OnRspQryInstrumentCommissionRate);
             // 交易所状态
             CTPAPI.GetInstance().OnRtnInstrumentStatus += new CTPAPI.RtnInstrumentStatus(OnRtnInstrumentStatus);
-            // 行情
-            CTPAPI.GetInstance().OnRspQryDepthMarketData += new CTPAPI.RspQryDepthMarketData(OnRspQryDepthMarketData);
-            CTPAPI.GetInstance().OnRtnDepthMarketData += new CTPAPI.RtnDepthMarketData(OnRtnDepthMarketData);
+
+            CTPAPI.GetInstance().OnRspQryTradingAccount += new CTPAPI.RspQryTradingAccount(OnRspQryTradingAccount);
+
+            CTPAPI.GetInstance().OnRspReqQryInvestorPosition += new CTPAPI.RspReqQryInvestorPosition(OnRspReqQryInvestorPosition);
+
+            // 此方法已经过期，在插件3.8.2.0中开始废弃
+            //CTPAPI.GetInstance().OnRtnDepthMarketData += new CTPAPI.RtnDepthMarketData(OnRtnDepthMarketData);
+        }
+
+        void OnRspReqQryInvestorPosition(CThostFtdcInvestorPositionField pInvestorPosition)
+        {
+            Console.WriteLine("==持仓");
+            Console.WriteLine(pInvestorPosition.InstrumentID);
+        }
+
+        void OnRspQryTradingAccount(CThostFtdcTradingAccountField pTradingAccount)
+        {
+            Console.WriteLine("==资金");
+            Console.WriteLine(pTradingAccount.Balance);
+            Console.WriteLine(pTradingAccount.TradingDay);
         }
 
         public override void OnStrategyStop()
@@ -42,8 +59,10 @@ namespace QuantBox.OQ.Demo.Plugins_Functions
             
             CTPAPI.GetInstance().OnRtnInstrumentStatus -= new CTPAPI.RtnInstrumentStatus(OnRtnInstrumentStatus);
 
-            CTPAPI.GetInstance().OnRspQryDepthMarketData -= new CTPAPI.RspQryDepthMarketData(OnRspQryDepthMarketData);
-            CTPAPI.GetInstance().OnRtnDepthMarketData -= new CTPAPI.RtnDepthMarketData(OnRtnDepthMarketData);
+            CTPAPI.GetInstance().OnRspQryTradingAccount -= new CTPAPI.RspQryTradingAccount(OnRspQryTradingAccount);
+
+            // 此方法已经过期，在插件3.8.2.0中开始废弃
+            //CTPAPI.GetInstance().OnRtnDepthMarketData -= new CTPAPI.RtnDepthMarketData(OnRtnDepthMarketData);
         }
 
         public override void OnBar(Bar bar)
@@ -95,14 +114,14 @@ namespace QuantBox.OQ.Demo.Plugins_Functions
                     pInstrumentStatus.InstrumentStatus);
         }
 
-        void OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField pDepthMarketData)
-        {
-            Console.WriteLine("==取深度行情");
-            Console.WriteLine(pDepthMarketData.InstrumentID);
-            Console.WriteLine(pDepthMarketData.LastPrice);
-            Console.WriteLine(pDepthMarketData.UpperLimitPrice);
-            Console.WriteLine(pDepthMarketData.LowerLimitPrice);
-        }
+        //void OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField pDepthMarketData)
+        //{
+        //    Console.WriteLine("==取深度行情");
+        //    Console.WriteLine(pDepthMarketData.InstrumentID);
+        //    Console.WriteLine(pDepthMarketData.LastPrice);
+        //    Console.WriteLine(pDepthMarketData.UpperLimitPrice);
+        //    Console.WriteLine(pDepthMarketData.LowerLimitPrice);
+        //}
 
         void OnRtnDepthMarketData(CThostFtdcDepthMarketDataField pDepthMarketData)
         {
